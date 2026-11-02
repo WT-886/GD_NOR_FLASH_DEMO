@@ -35,6 +35,15 @@ OF SUCH DAMAGE.
 GD32F450 SPI NOR demo: 1x / 2x / 4x
 =================================
 
+Author and development
+----------------------
+Author / maintainer: Teng Wu, Flash FAE, GigaDevice
+Contact: teng.wu@gigadevice.com
+AI assistance: GitHub Copilot helped implement demo/test code, investigate
+build/debug issues and prepare documentation. The author directed requirements
+and performed hardware validation. Vendor components retain their original
+attribution and license notices. This demo is not a production-qualified driver.
+
 References
 ----------
 Uses the bundled GD32F4xx standard peripheral library (spi_quad_* APIs).

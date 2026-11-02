@@ -6,6 +6,20 @@ single/quad program APIs, and an optional full-device random test.
 **Warning: the current code enables the destructive full-device test. It erases
 all 4 MiB of external NOR data on every reset. Back up data before running.**
 
+## Author And Development
+
+- Author / maintainer: **Teng Wu**, Flash Field Application Engineer (FAE),
+   **GigaDevice**.
+- Contact: [teng.wu@gigadevice.com](mailto:teng.wu@gigadevice.com).
+- AI assistance: **GitHub Copilot** assisted with demo implementation, test
+   code, build/debug analysis and documentation. The author directed the
+   requirements and performed hardware validation.
+
+This attribution covers the demo-specific additions. Vendor libraries,
+startup files and reference components retain their original attribution
+and license notices. AI assistance and board testing do not constitute
+production qualification or guarantee compatibility with every Flash device.
+
 ## Features
 
 - Single read (`03h`), dual-output read (`3Bh`), quad-output read (`6Bh`).
