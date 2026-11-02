@@ -1,0 +1,298 @@
+{
+  "projectname": "GD32450Z_QSPI_Nor",
+  "mcu": "GD32F450ZKT6",
+  "debug": {
+    "activeConfiguration": "Debug",
+    "configurations": [
+      {
+        "name": "Debug",
+        "probe": "gdlink",
+        "sn": "",
+        "cfg": [],
+        "interface": "swd",
+        "speed": 4000,
+        "svdFile": "GD32F4xx.svd",
+        "elfFile": "",
+        "resetOnConnect": true,
+        "loadSymbolsOnly": false,
+        "freezePeripherals": false
+      }
+    ]
+  },
+  "scanExcludes": [
+    ".git/",
+    ".svn/",
+    ".vscode/"
+  ],
+  "ProjectActiveConfigurations": "Debug",
+  "configurations": {
+    "Debug": {
+      "targetProcessor": {
+        "armFamily": "cortex-m4",
+        "architecture": "None",
+        "instructionSet": "Thumb",
+        "floatABI": "None",
+        "fpuType": "None",
+        "otherTargetFlags": ""
+      },
+      "optimization": {
+        "level": "-O0",
+        "messageLength": true,
+        "signedChar": true,
+        "functionSections": true,
+        "dataSections": true,
+        "noCommon": false,
+        "pic": false,
+        "lto": false,
+        "otherFlags": ""
+      },
+      "warnings": {
+        "syntaxOnly": false,
+        "inhibitAll": false,
+        "werror": false,
+        "pedantic": false,
+        "pedanticErrors": false,
+        "wall": false,
+        "wextra": false,
+        "wunused": false,
+        "wuninitialized": false,
+        "wconversion": false,
+        "otherFlags": ""
+      },
+      "debugging": {
+        "level": "-g3",
+        "prof": false,
+        "gprof": false,
+        "otherFlags": ""
+      },
+      "outputFile": {
+        "list": true,
+        "dump": false,
+        "hex": true,
+        "bin": true,
+        "mot": false,
+        "size": true,
+        "objcopyFlags": "",
+        "objdumpFlags": "--source --all-headers --demangle --line-numbers --wide",
+        "sizeFlags": "--format=berkeley"
+      },
+      "buildSteps": {
+        "preBuild": {
+          "command": "",
+          "description": ""
+        },
+        "postBuild": {
+          "command": "",
+          "description": ""
+        }
+      },
+      "buildArtifact": {
+        "artifactType": "executable",
+        "artifactName": "${ProjName}",
+        "artifactExtension": "elf",
+        "outputPrefix": ""
+      },
+      "excludedFiles": [],
+      "compiler": {
+        "general": {
+          "cStandard": "-std=gnu11",
+          "otherFlags": ""
+        },
+        "preprocessor": {
+          "defines": [
+            "GD32F450",
+            "GD_ECLIPSE_GCC",
+            "USE_STDPERIPH_DRIVER"
+          ]
+        },
+        "includes": {
+          "includePaths": [
+            "Firmware/CMSIS",
+            "Firmware/CMSIS/GD/GD32F4xx/Include",
+            "Firmware/GD32F4xx_standard_peripheral/Include",
+            "inc"
+          ],
+          "systemPaths": [],
+          "includeFiles": []
+        }
+      },
+      "linker": {
+        "general": {
+          "linkerScript": "gd32f4xx_flash.ld",
+          "nostartfiles": false,
+          "nodefaultlibs": false,
+          "nostdlib": false,
+          "gcSections": true,
+          "stripAll": false
+        },
+        "libraries": {
+          "libs": [],
+          "searchPaths": [
+            "ldscripts/"
+          ]
+        },
+        "miscellaneous": {
+          "linkerFlags": [],
+          "otherObjects": [],
+          "generateMap": true,
+          "crossReference": false,
+          "newlibNano": true,
+          "printfFloat": false,
+          "noSyscalls": true,
+          "otherFlags": "-Wl,--no-warn-rwx-segments"
+        }
+      },
+      "assembler": {
+        "preprocessor": {
+          "usePreprocessor": true,
+          "nostdinc": false
+        },
+        "miscellaneous": {
+          "assemblerFlags": "",
+          "generateListing": false,
+          "verbose": false,
+          "otherFlags": ""
+        },
+        "includes": {
+          "includePaths": [],
+          "systemPaths": [],
+          "includeFiles": []
+        }
+      }
+    },
+    "Release": {
+      "targetProcessor": {
+        "armFamily": "cortex-m4",
+        "architecture": "None",
+        "instructionSet": "Thumb",
+        "floatABI": "None",
+        "fpuType": "None",
+        "otherTargetFlags": ""
+      },
+      "optimization": {
+        "level": "-O0",
+        "messageLength": true,
+        "signedChar": true,
+        "functionSections": true,
+        "dataSections": true,
+        "noCommon": false,
+        "pic": false,
+        "lto": false,
+        "otherFlags": ""
+      },
+      "warnings": {
+        "syntaxOnly": false,
+        "inhibitAll": false,
+        "werror": false,
+        "pedantic": false,
+        "pedanticErrors": false,
+        "wall": false,
+        "wextra": false,
+        "wunused": false,
+        "wuninitialized": false,
+        "wconversion": false,
+        "otherFlags": ""
+      },
+      "debugging": {
+        "level": "-g",
+        "prof": false,
+        "gprof": false,
+        "otherFlags": ""
+      },
+      "outputFile": {
+        "list": true,
+        "dump": false,
+        "hex": true,
+        "bin": true,
+        "mot": false,
+        "size": true,
+        "objcopyFlags": "",
+        "objdumpFlags": "--source --all-headers --demangle --line-numbers --wide",
+        "sizeFlags": "--format=berkeley"
+      },
+      "buildSteps": {
+        "preBuild": {
+          "command": "",
+          "description": ""
+        },
+        "postBuild": {
+          "command": "",
+          "description": ""
+        }
+      },
+      "buildArtifact": {
+        "artifactType": "executable",
+        "artifactName": "${ProjName}",
+        "artifactExtension": "elf",
+        "outputPrefix": ""
+      },
+      "excludedFiles": [],
+      "compiler": {
+        "general": {
+          "cStandard": "-std=gnu11",
+          "otherFlags": ""
+        },
+        "preprocessor": {
+          "defines": [
+            "GD32F450",
+            "USE_STDPERIPH_DRIVER",
+            "NDEBUG"
+          ]
+        },
+        "includes": {
+          "includePaths": [
+            "Firmware/CMSIS",
+            "Firmware/CMSIS/GD/GD32F4xx/Include",
+            "Firmware/GD32F4xx_standard_peripheral/Include",
+            "inc"
+          ],
+          "systemPaths": [],
+          "includeFiles": []
+        }
+      },
+      "linker": {
+        "general": {
+          "linkerScript": "gd32f4xx_flash.ld",
+          "nostartfiles": false,
+          "nodefaultlibs": false,
+          "nostdlib": false,
+          "gcSections": true,
+          "stripAll": false
+        },
+        "libraries": {
+          "libs": [],
+          "searchPaths": [
+            "ldscripts/"
+          ]
+        },
+        "miscellaneous": {
+          "linkerFlags": [],
+          "otherObjects": [],
+          "generateMap": true,
+          "crossReference": false,
+          "newlibNano": true,
+          "printfFloat": false,
+          "noSyscalls": true,
+          "otherFlags": "-Wl,--no-warn-rwx-segments"
+        }
+      },
+      "assembler": {
+        "preprocessor": {
+          "usePreprocessor": true,
+          "nostdinc": false
+        },
+        "miscellaneous": {
+          "assemblerFlags": "",
+          "generateListing": false,
+          "verbose": false,
+          "otherFlags": ""
+        },
+        "includes": {
+          "includePaths": [],
+          "systemPaths": [],
+          "includeFiles": []
+        }
+      }
+    }
+  }
+}

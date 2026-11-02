@@ -1,0 +1,35 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "GD32 Debug (OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/GD32450Z_QSPI_Nor.elf",
+            "gdbPath": "E:/feishu_cache/arm-gnu-toolchain-15.2.rel1-mingw-w64-x86_64-arm-none-eabi/bin/arm-none-eabi-gdb.exe",
+            "serverpath": "E:/Browser_download/openocd-cb0c224-i686-w64-mingw32/bin/openocd.exe",
+            "configFiles": [
+                "${workspaceFolder}/openocd_gdlink/openocd_gdlink.cfg"
+            ],
+            "runToEntryPoint": "main"
+        },
+        {
+            "name": "GD32 Attach (OpenOCD)",
+            "type": "cortex-debug",
+            "request": "attach",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/GD32450Z_QSPI_Nor.elf",
+            "gdbPath": "E:/feishu_cache/arm-gnu-toolchain-15.2.rel1-mingw-w64-x86_64-arm-none-eabi/bin/arm-none-eabi-gdb.exe",
+            "serverpath": "E:/Browser_download/openocd-cb0c224-i686-w64-mingw32/bin/openocd.exe",
+            "configFiles": [
+                "${workspaceFolder}/openocd_gdlink/openocd_gdlink.cfg"
+            ]
+        }
+    ]
+}

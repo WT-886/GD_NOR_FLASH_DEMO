@@ -1,0 +1,25 @@
+# CMake build outputs and machine-local configuration
+/build/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/compile_commands.json
+/CMakeUserPresets.json
+
+# Firmware artifacts and runtime logs
+*.o
+*.obj
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.log
+
+# Editor caches and OS files
+/.cache/
+/.vscode/ipch/
+/.vscode/.browse.VC.db*
+Thumbs.db
+Desktop.ini
+.DS_Store

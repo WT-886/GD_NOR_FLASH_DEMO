@@ -1,0 +1,7 @@
+{
+  "cmake.cmakePath": "cmake",
+  "cmake.configureOnOpen": true,
+  "cmake.useVsDeveloperEnvironment": "never",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/Debug/compile_commands.json",
+  "debug.allowBreakpointsEverywhere": true
+}
