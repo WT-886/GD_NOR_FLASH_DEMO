@@ -13,6 +13,7 @@
 #define CMD_PROGRAM        0x02U
 #define CMD_QUAD_PROGRAM   0x32U
 #define CMD_SECTOR_ERASE   0x20U
+#define CMD_CHIP_ERASE     0xC7U
 #define DUMMY_BYTE         0xA5U
 #define SR_BUSY            0x01U
 #define SR_WEL             0x02U
@@ -84,15 +85,20 @@ ErrStatus spi_nor_read_status(uint8_t *sr1, uint8_t *sr2)
     return SUCCESS;
 }
 
-static ErrStatus wait_ready(void)
+static ErrStatus wait_ready_timeout(uint32_t timeout_ms)
 {
-    for(uint32_t elapsed = 0U; elapsed < READY_TIMEOUT_MS; elapsed++) {
+    for(uint32_t elapsed = 0U; elapsed < timeout_ms; elapsed++) {
         if(0U == (read_register(CMD_READ_SR1) & SR_BUSY)) {
             return SUCCESS;
         }
         delay_1ms(1U);
     }
     return ERROR;
+}
+
+static ErrStatus wait_ready(void)
+{
+    return wait_ready_timeout(READY_TIMEOUT_MS);
 }
 
 static ErrStatus write_enable(void)
@@ -394,4 +400,16 @@ ErrStatus spi_nor_erase_sector(uint32_t address)
     send_address(address);
     deselect_flash();
     return wait_ready();
+}
+
+/* C7h: erase all physical sectors with a dedicated, longer BUSY timeout. */
+ErrStatus spi_nor_chip_erase(void)
+{
+    if((ERROR == writable()) || (ERROR == write_enable())) {
+        return ERROR;
+    }
+    select_flash();
+    transfer(CMD_CHIP_ERASE);
+    deselect_flash();
+    return wait_ready_timeout(SPI_NOR_CHIP_ERASE_TIMEOUT_MS);
 }

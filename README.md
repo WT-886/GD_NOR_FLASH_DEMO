@@ -10,6 +10,7 @@ all 4 MiB of external NOR data on every reset. Back up data before running.**
 
 - Single read (`03h`), dual-output read (`3Bh`), quad-output read (`6Bh`).
 - Single Page Program (`02h`), quad Page Program (`32h`), 4 KiB sector erase.
+- Chip Erase (`C7h`) with a separate configurable BUSY timeout.
 - 256-byte page splitting, byte-by-byte verification and serial diagnostics.
 - JEDEC ID is printed, not used as a device whitelist.
 - Full-device test: erase/blank-check, single random program/readback, erase,
@@ -51,6 +52,8 @@ options; all build directories use the same header configuration.
 | `SPI_NOR_PAGE_SIZE` | 256 bytes |
 | `SPI_NOR_SECTOR_SIZE` | 4096 bytes |
 | `SPI_NOR_DEMO_ADDRESS` | `0x00100000`; reserved sector for the simple test |
+| `SPI_NOR_FULL_TEST_CHIP_ERASE` | `0U`: sector loop; `1U`: use C7h in the full test |
+| `SPI_NOR_CHIP_ERASE_TIMEOUT_MS` | `180000U`; adjust to the actual datasheet maximum |
 
 Select the test using these two definitions:
 
@@ -64,6 +67,12 @@ Select the test using these two definitions:
 even when array erase/program is disabled. Protection bits are preserved.
 Verify the actual Flash capacity, QE location and command compatibility before
 use; the current profile uses 24-bit addressing and GD25Q/W25Q-style registers.
+
+`spi_nor_chip_erase()` erases the entire physical chip, regardless of the
+configured capacity. The header selects sector erases or C7h for the full test.
+Selecting C7h changes all three erase stages and still blank-checks every byte.
+Chip Erase can take much longer than a sector erase. A timeout does not cancel
+the physical operation; do not reset or program the device while it is busy.
 
 ## Build
 
@@ -91,6 +100,9 @@ Changing a test mode requires rebuilding and downloading the new image.
 
 The simple test prints `demo PASS/FAIL`. The full-device test prints progress,
 random seeds, the first failing address/value, and `FULL CHIP TEST PASS/FAIL`.
+The simple demo shows the first 32 reference and received bytes, in 16-byte rows.
+The full test shows the first block's program/reference/readback data only,
+so data dumps do not flood the console or interrupt the SPI transaction itself.
 On success it leaves the whole device erased; on failure it preserves the data
 and skips later stages. Earlier random-data tests found read mismatches; this
 repository is a demonstration and diagnostic project, not a qualified driver.

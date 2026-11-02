@@ -61,6 +61,7 @@ static ErrStatus verify_data(const char *name, uint32_t address, ErrStatus resul
         printf("Read operation failed before data comparison.\r\n");
         return ERROR;
     }
+    spi_nor_dump_data(name, address, received, TEST_LENGTH);
     if(0 != memcmp(expected, received, TEST_LENGTH)) {
         uint32_t offset = 0U;
         while(expected[offset] == received[offset]) {
@@ -95,6 +96,7 @@ static ErrStatus verify_reads(uint32_t address)
     uint8_t sr1;
     uint8_t sr2;
 
+    spi_nor_dump_data("Expected / reference", address, expected, TEST_LENGTH);
     /* Test every interface even if another interface has failed. */
     result = spi_nor_read(address, received, TEST_LENGTH);
     if(ERROR == verify_data("single read / verify", address, result)) {

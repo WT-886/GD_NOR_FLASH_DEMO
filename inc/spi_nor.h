@@ -27,6 +27,10 @@
 #define SPI_NOR_DEMO_ALLOW_ERASE    1U
 /* Destructive full-device test; both switches must be enabled. */
 #define SPI_NOR_FULL_TEST           1U
+/* Full test erase method: 0 = sector loop, 1 = C7h Chip Erase. */
+#define SPI_NOR_FULL_TEST_CHIP_ERASE 1U
+/* Adjust to the maximum Chip Erase time in the actual Flash datasheet. */
+#define SPI_NOR_CHIP_ERASE_TIMEOUT_MS 180000U
 #if SPI_NOR_FULL_TEST && !SPI_NOR_DEMO_ALLOW_ERASE
 #error "Full-device test requires SPI_NOR_DEMO_ALLOW_ERASE=1"
 #endif
@@ -44,5 +48,7 @@ ErrStatus spi_nor_program(uint32_t address, const uint8_t *data, uint32_t length
 ErrStatus spi_nor_quad_program(uint32_t address, const uint8_t *data, uint32_t length);
 /* Erases one aligned 4 KiB sector, not the whole chip. */
 ErrStatus spi_nor_erase_sector(uint32_t address);
+/* Erases the entire physical chip, regardless of SPI_NOR_FLASH_SIZE. */
+ErrStatus spi_nor_chip_erase(void);
 
 #endif

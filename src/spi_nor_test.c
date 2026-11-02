@@ -3,6 +3,26 @@
 #include <stdio.h>
 #include <string.h>
 
+void spi_nor_dump_data(const char *name, uint32_t address, const uint8_t *data, uint32_t length)
+{
+    const uint32_t count = (length < 32U) ? length : 32U;
+
+    if((NULL == data) || (0U == count)) {
+        return;
+    }
+    printf("%s @0x%08lX, first %lu bytes:\r\n", name,
+           (unsigned long)address, (unsigned long)count);
+    for(uint32_t index = 0U; index < count; index++) {
+        if(0U == index % 16U) {
+            printf("  %08lX:", (unsigned long)(address + index));
+        }
+        printf(" %02X", (unsigned)data[index]);
+        if((15U == index % 16U) || (index + 1U == count)) {
+            printf("\r\n");
+        }
+    }
+}
+
 #if SPI_NOR_FULL_TEST
 
 #define FULL_TEST_BUFFER_SIZE  768U
@@ -54,6 +74,9 @@ static ErrStatus full_compare(const char *stage, uint32_t address, uint32_t leng
         printf("%s operation failed at 0x%08lX\r\n", stage, (unsigned long)address);
         return ERROR;
     }
+    if(0U == address) {
+        spi_nor_dump_data(stage, address, received, length);
+    }
     for(uint32_t index = 0U; index < length; index++) {
         if(expected[index] != received[index]) {
             printf("%s mismatch at 0x%08lX: expected=%02X received=%02X\r\n",
@@ -65,9 +88,18 @@ static ErrStatus full_compare(const char *stage, uint32_t address, uint32_t leng
     return SUCCESS;
 }
 
-/* Sector erases cover the whole device and keep each BUSY wait bounded. */
+/* Both erase methods are followed by a full-device blank check. */
 static ErrStatus full_erase(void)
 {
+#if SPI_NOR_FULL_TEST_CHIP_ERASE
+    printf("C7h Chip Erase started, timeout %lu ms\r\n",
+           (unsigned long)SPI_NOR_CHIP_ERASE_TIMEOUT_MS);
+    if(ERROR == spi_nor_chip_erase()) {
+        printf("Chip Erase failed or timed out; the device may still be busy.\r\n");
+        return ERROR;
+    }
+    full_progress("chip erase", 0U, SPI_NOR_FLASH_SIZE);
+#else
     for(uint32_t address = 0U; address < SPI_NOR_FLASH_SIZE; address += SPI_NOR_SECTOR_SIZE) {
         if(ERROR == spi_nor_erase_sector(address)) {
             printf("Erase failed at 0x%08lX\r\n", (unsigned long)address);
@@ -75,6 +107,7 @@ static ErrStatus full_erase(void)
         }
         full_progress("erase", address, SPI_NOR_SECTOR_SIZE);
     }
+#endif
     memset(expected, 0xFF, sizeof(expected));
     for(uint32_t address = 0U; address < SPI_NOR_FLASH_SIZE;) {
         const uint32_t length = full_chunk_size(address);
@@ -97,6 +130,9 @@ static ErrStatus full_program(const char *stage, uint32_t seed,
     for(uint32_t address = 0U; address < SPI_NOR_FLASH_SIZE;) {
         const uint32_t length = full_chunk_size(address);
         fill_random(expected, length, &state);
+        if(0U == address) {
+            spi_nor_dump_data(stage, address, expected, length);
+        }
         if(ERROR == program(address, expected, length)) {
             printf("%s failed at 0x%08lX\r\n", stage, (unsigned long)address);
             return ERROR;
@@ -118,6 +154,9 @@ static ErrStatus full_verify(uint32_t seed)
         ErrStatus result;
 
         fill_random(expected, length, &state);
+        if(0U == address) {
+            spi_nor_dump_data("Expected", address, expected, length);
+        }
         result = spi_nor_read(address, received, length);
         if(ERROR == full_compare("single read", address, length, result)) {
             overall = ERROR;

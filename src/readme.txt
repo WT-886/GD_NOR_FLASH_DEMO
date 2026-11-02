@@ -97,6 +97,7 @@ Quad output read    6Bh        1-1-4, 8 quad-mode dummy clocks
 Single program      02h        1-1-1
 Quad program        32h        1-1-4
 4 KiB erase         20h        1-1-0
+Chip Erase          C7h        1-0-0, erases the whole physical device
 SR1/SR2 read        05h/35h
 Write enable        06h
 Status write        01h        SR1 followed by SR2, preserves other bits
@@ -128,7 +129,7 @@ Each NOR Page Program needs Write Enable, a page-bounded payload and BUSY pollin
 Safety and self-test
 --------------------
 Test switches are configured only in inc/spi_nor.h, not in CMake options.
-Default SPI_NOR_DEMO_ALLOW_ERASE=0: reads existing data in all three modes
+With SPI_NOR_DEMO_ALLOW_ERASE=0, read existing data in all three modes
 and compares against 1x. Array contents are not changed, but the first quad
 read MAY SET NONVOLATILE SR2.QE via 06h + 01h. Protection is not cleared.
 QE remains enabled after the demo. This is not a strictly read-only test
@@ -172,7 +173,16 @@ Rebuild with the normal build command and download the resulting image:
 No -D test options are needed or used. All build directories now use the same
 header settings; the name build/FullTest no longer selects a different mode.
 
-1. Erase every 4 KiB sector and verify every byte is FF with single-line read.
+Choose the full-test erase method in the same header:
+    #define SPI_NOR_FULL_TEST_CHIP_ERASE 0U
+0 uses the original 4 KiB sector loop; 1 uses spi_nor_chip_erase() (C7h).
+The C7h API sends Write Enable, checks protection and uses a separate timeout:
+    #define SPI_NOR_CHIP_ERASE_TIMEOUT_MS 180000U
+This is a demo default; verify it against the actual Flash datasheet maximum.
+C7h always erases the entire physical device, not a software-limited range.
+A timeout does not abort an erase already running inside the Flash.
+
+1. Erase via the selected method and verify every byte is FF with single-line read.
 2. Program the entire device using single-line Page Program and xorshift32
    seed 12345678h; regenerate and compare every byte with all three read APIs.
 3. Erase/blank-check again, then repeat with quad Page Program and seed 9E3779B9h.
@@ -182,6 +192,9 @@ The two 768-byte buffers are reused; the last partial chunk is also checked.
 Seeds are fixed for reproducibility, not cryptographic randomness. Data is
 programmed across the whole device before readback, helping detect aliasing.
 The console reports progress near each MiB and the first bad address/value.
+Simple-demo comparisons show the first 32 reference and received bytes in
+16-byte rows. Full-device tests show program and readback samples for only
+the first block of each stage. Data is printed outside the SPI transaction.
 An error stops the test without cleanup so the failed data can be inspected.
 Dual read is still the GPIO diagnostic path, not native SPI5 dual reception.
 Final result is printed as FULL CHIP TEST PASS or FAIL. Expect several minutes.
@@ -209,6 +222,7 @@ The driver exposes separate transactions, with no transfer-mode parameter:
     spi_nor_program          02h single-line Page Program
     spi_nor_quad_program     32h quad-line Page Program
     spi_nor_erase_sector     20h 4 KiB sector erase
+    spi_nor_chip_erase       C7h whole-chip erase, dedicated BUSY timeout
 Only low-level GPIO/SPI, address and status helpers are shared.
 
 Driver contract and limitations
@@ -217,7 +231,8 @@ Initialize SysTick before spi_nor_init; do not call the driver in an ISR
 or with interrupts disabled. Calls are blocking and not thread-safe.
 Like the NAND reference, SPI hardware flags are polled directly without a
 timeout or recovery state machine. Incorrect SPI setup may block a call.
-Flash BUSY polling still has a 5000 ms limit.
+Normal Flash BUSY polling has a 5000 ms limit; C7h uses the separately
+configured SPI_NOR_CHIP_ERASE_TIMEOUT_MS (180000 ms by default).
 Program automatically splits at page boundaries; erase must be 4 KiB aligned.
 All ranges are checked without address+length overflow. Erase before program;
 NOR programming only changes bits from 1 to 0. No automatic erase is performed.
