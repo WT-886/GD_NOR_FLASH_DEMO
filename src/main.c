@@ -181,6 +181,208 @@ static ErrStatus nor_demo(void)
 
 #endif
 
+static ErrStatus show_protection_result(const char *name, spi_nor_protect_result_t result)
+{
+    spi_nor_protection_t protection;
+    const spi_nor_protect_result_t status = spi_nor_get_protection(&protection);
+    const ErrStatus passed = ((SPI_NOR_PROTECT_OK == result) &&
+                              (SPI_NOR_PROTECT_OK == status)) ? SUCCESS : ERROR;
+
+    print_result(name, passed);
+    if(SPI_NOR_PROTECT_OK != result) {
+        printf("Protection error: %u\r\n", (unsigned)result);
+    }
+    if(SPI_NOR_PROTECT_OK == status) {
+        printf("SR1=%02X SR2=%02X BP=%02X CMP=%u, start=0x%06lX size=%lu\r\n",
+               (unsigned)protection.sr1, (unsigned)protection.sr2,
+               (unsigned)protection.bp, (unsigned)protection.cmp,
+               (unsigned long)protection.start, (unsigned long)protection.length);
+    } else {
+        printf("Read protection status failed: %u\r\n", (unsigned)status);
+    }
+    return passed;
+}
+
+#if SPI_NOR_DEMO_ALLOW_ERASE
+/* Use one disposable sector and one short pattern after unlocking. */
+static ErrStatus protection_rw_test(uint32_t address, uint8_t seed)
+{
+    uint8_t written[32];
+    uint8_t readback[32];
+    ErrStatus result;
+
+    printf("Erase/write/read @0x%06lX\r\n", (unsigned long)address);
+    result = spi_nor_test_erase_raw(address);
+    print_result("sector erase", result);
+    if(ERROR == result) {
+        return ERROR;
+    }
+    result = spi_nor_read(address, readback, sizeof(readback));
+    if(SUCCESS == result) {
+        for(uint32_t index = 0U; index < sizeof(readback); index++) {
+            if(0xFFU != readback[index]) {
+                result = ERROR;
+                break;
+            }
+        }
+    }
+    print_result("erase blank / verify", result);
+    if(ERROR == result) {
+        return ERROR;
+    }
+    for(uint32_t index = 0U; index < sizeof(written); index++) {
+        written[index] = (uint8_t)(seed + index);
+    }
+    result = spi_nor_test_program_raw(address, written, sizeof(written));
+    print_result("single write", result);
+    if(ERROR == result) {
+        return ERROR;
+    }
+    result = spi_nor_read(address, readback, sizeof(readback));
+    if(SUCCESS == result) {
+        spi_nor_dump_data("Readback", address, readback, sizeof(readback));
+        result = (0 == memcmp(written, readback, sizeof(written))) ? SUCCESS : ERROR;
+    }
+    print_result("read / verify", result);
+    return result;
+}
+
+/* Preparation writes 32 patterned bytes and leaves the rest of the sector FF. */
+static ErrStatus protection_verify_sector(uint32_t address, uint8_t seed)
+{
+    uint8_t readback[32];
+
+    for(uint32_t offset = 0U; offset < SPI_NOR_SECTOR_SIZE; offset += sizeof(readback)) {
+        if(ERROR == spi_nor_read(address + offset, readback, sizeof(readback))) {
+            printf("Protected sector read failed @0x%06lX\r\n", (unsigned long)(address + offset));
+            return ERROR;
+        }
+        for(uint32_t index = 0U; index < sizeof(readback); index++) {
+            const uint8_t expected_byte = (0U == offset) ? (uint8_t)(seed + index) : 0xFFU;
+            if(readback[index] != expected_byte) {
+                printf("Protected data changed @0x%06lX: expected=%02X got=%02X\r\n",
+                       (unsigned long)(address + offset + index),
+                       (unsigned)expected_byte, (unsigned)readback[index]);
+                return ERROR;
+            }
+        }
+    }
+    return SUCCESS;
+}
+
+/* Send real commands: only unchanged readback proves hardware rejection. */
+static ErrStatus protection_block_test(uint32_t address, uint8_t seed)
+{
+    uint8_t pattern[32] = {0U};
+    spi_nor_protection_t protection;
+    ErrStatus result;
+
+    if((SPI_NOR_PROTECT_OK != spi_nor_get_protection(&protection)) ||
+       (protection.length < SPI_NOR_SECTOR_SIZE) || (address < protection.start) ||
+       (address - protection.start > protection.length - SPI_NOR_SECTOR_SIZE)) {
+        print_result("protected range check", ERROR);
+        return ERROR;
+    }
+    result = protection_verify_sector(address, seed);
+    print_result("nonblank baseline", result);
+    if(ERROR == result) {
+        return ERROR;
+    }
+
+    result = spi_nor_test_program_raw(address, pattern, sizeof(pattern));
+    print_result("02h program command sent", result);
+    if(ERROR == result) {
+        return ERROR;
+    }
+    result = protection_verify_sector(address, seed);
+    print_result("program blocked (flash)", result);
+    if(ERROR == result) {
+        return ERROR;
+    }
+
+    result = spi_nor_test_erase_raw(address);
+    print_result("20h erase command sent", result);
+    if(ERROR == result) {
+        return ERROR;
+    }
+    result = protection_verify_sector(address, seed);
+    print_result("erase blocked (flash)", result);
+    return result;
+}
+#endif
+
+static ErrStatus protection_demo(void)
+{
+    ErrStatus overall = SUCCESS;
+
+    printf("\r\nProtection test: full -> none -> bottom 64 KiB -> none\r\n");
+    if(ERROR == show_protection_result("initial protection", SPI_NOR_PROTECT_OK)) {
+        return ERROR;
+    }
+#if SPI_NOR_DEMO_ALLOW_ERASE
+    if((0U != SPI_NOR_DEMO_ADDRESS % SPI_NOR_SECTOR_SIZE) ||
+       (SPI_NOR_DEMO_ADDRESS < 0x010000U) ||
+       (SPI_NOR_DEMO_ADDRESS >= SPI_NOR_FLASH_SIZE) ||
+       (SPI_NOR_SECTOR_SIZE > SPI_NOR_FLASH_SIZE - SPI_NOR_DEMO_ADDRESS)) {
+        printf("Choose an unprotected aligned test sector above the bottom 64 KiB.\r\n");
+        return ERROR;
+    }
+    printf("WARNING: R/W tests destroy sectors 0x000000 and 0x%06lX.\r\n",
+           (unsigned long)SPI_NOR_DEMO_ADDRESS);
+    printf("Hardware protection test: raw 02h/20h commands bypass the BP/CMP guard.\r\n");
+    if(ERROR == show_protection_result("prepare unprotect", spi_nor_unprotect())) {
+        return ERROR;
+    }
+    if(ERROR == protection_rw_test(0U, 0x55U)) {
+        return ERROR;
+    }
+#else
+    printf("Array checks skipped: erase/program is disabled.\r\n");
+#endif
+    if(ERROR == show_protection_result("full protection", spi_nor_protect_all())) {
+        overall = ERROR;
+    }
+#if SPI_NOR_DEMO_ALLOW_ERASE
+    else if(ERROR == protection_block_test(0U, 0x55U)) {
+        show_protection_result("cleanup unprotect", spi_nor_unprotect());
+        return ERROR;
+    }
+#endif
+    /* Always try to clear the full protection before testing a partial range. */
+    if(ERROR == show_protection_result("unprotect full", spi_nor_unprotect())) {
+        printf("Cannot clear protection; test stopped.\r\n");
+        return ERROR;
+    }
+#if SPI_NOR_DEMO_ALLOW_ERASE
+    if(ERROR == protection_rw_test(0U, 0x55U)) {
+        overall = ERROR;
+    }
+#endif
+    if(ERROR == show_protection_result("bottom 64 KiB protect", spi_nor_protect_bottom64k())) {
+        overall = ERROR;
+    }
+#if SPI_NOR_DEMO_ALLOW_ERASE
+    else {
+        if(ERROR == protection_block_test(0U, 0x55U)) {
+            show_protection_result("cleanup unprotect", spi_nor_unprotect());
+            return ERROR;
+        }
+        if(ERROR == protection_rw_test(SPI_NOR_DEMO_ADDRESS, 0x77U)) {
+            overall = ERROR;
+        }
+    }
+#endif
+    if(ERROR == show_protection_result("unprotect partial", spi_nor_unprotect())) {
+        overall = ERROR;
+    }
+#if SPI_NOR_DEMO_ALLOW_ERASE
+    else if(ERROR == protection_rw_test(0U, 0xAAU)) {
+        overall = ERROR;
+    }
+#endif
+    return overall;
+}
+
 /*!
     \brief    toggle the led every 500ms
     \param[in]  none
@@ -225,6 +427,8 @@ int main(void)
 #else
     print_result("demo", nor_demo());
 #endif
+    /* Run after array tests; a successful sequence leaves the array unlocked. */
+    print_result("PROTECTION TEST", protection_demo());
     while(1) {
     }
 }

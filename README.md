@@ -3,8 +3,8 @@
 SPI5 NOR Flash demo for GD32F450ZKT6, with separate single/dual/quad read APIs,
 single/quad program APIs, and an optional full-device random test.
 
-**Warning: the current code enables the destructive full-device test. It erases
-all 4 MiB of external NOR data on every reset. Back up data before running.**
+**Warning: enabling the full-device test erases all 4 MiB of external NOR data
+on every reset. Back up data before enabling destructive tests.**
 
 ## Author And Development
 
@@ -75,7 +75,7 @@ Select the test using these two definitions:
 | --- | --- | --- |
 | `0U` | `0U` | Simple comparison of existing array data |
 | `1U` | `0U` | Destructive single-sector write/read demo |
-| `1U` | `1U` | Destructive full-device random test (currently selected) |
+| `1U` | `1U` | Destructive full-device random test |
 
 `0U / 1U` is rejected at compile time. Quad reads may set nonvolatile SR2.QE
 even when array erase/program is disabled. Protection bits are preserved.
@@ -87,6 +87,67 @@ configured capacity. The header selects sector erases or C7h for the full test.
 Selecting C7h changes all three erase stages and still blank-checks every byte.
 Chip Erase can take much longer than a sector erase. A timeout does not cancel
 the physical operation; do not reset or program the device while it is busy.
+
+## GD25Q32E Protection
+
+This branch provides three fixed array-protection presets, not an arbitrary
+address-range configuration API:
+
+| API | Protected Addresses | BP / CMP |
+| --- | --- | --- |
+| `spi_nor_protect_all()` | `0x000000` to `0x3FFFFF` | `07h / 0` |
+| `spi_nor_protect_bottom64k()` | `0x000000` to `0x00FFFF` | `09h / 0` |
+| `spi_nor_unprotect()` | None | `00h / 0` |
+
+Call one preset explicitly after `spi_nor_init()` and check its result:
+
+```c
+spi_nor_protection_t state;
+spi_nor_protect_result_t result = spi_nor_protect_bottom64k();
+if (SPI_NOR_PROTECT_OK == result) {
+   result = spi_nor_get_protection(&state);
+}
+```
+
+Use the other two presets instead of the partial preset when needed. Status
+is read fresh for each operation. One Write Enable is followed by `01h`,
+the new SR1 byte and the new SR2 byte under the same CS, matching the official
+GD25Qxx reference. BP and CMP change together; SRP, LB and QE are preserved.
+Each write has a 100 ms BUSY wait and strict final readback checks. This replaces
+the separate `01h`/`31h` path, which failed to preserve QE in reported testing.
+The paired sequence preserved QE in the subsequent board log supplied by the author.
+
+For simplicity, any set SRP0 or SRP1 returns `SPI_NOR_PROTECT_ERR_LOCKED`,
+even if a more complete WP#/QE policy could allow writing. This demo never
+changes SRP or permanent locks. A failure may leave a partly updated setting;
+read status again before retrying. Protection is nonvolatile on this profile.
+Writes/sector erases outside the protected range remain available; overlap is
+rejected, and Chip Erase is rejected while any array range is protected.
+
+At the end of `main()`, after the selected array test, a simple protection demo
+runs: prepare data -> full protection -> unprotect -> bottom 64 KiB protection
+-> unprotect.
+Each step prints its result and fresh SR1/SR2, BP/CMP and protected range.
+With SPI_NOR_DEMO_ALLOW_ERASE=1U, the protection demo also uses disposable sectors
+at `0x000000` and `SPI_NOR_DEMO_ADDRESS`. It first unlocks and prepares a known
+nonblank pattern in the bottom sector: 32 patterned bytes, then FF to 4 KiB.
+While protected, diagnostic APIs send actual `06h` + `02h` Page Program with
+zero data, and `06h` + `20h` Sector Erase, bypassing only the BP/CMP software
+range guard. After each attempt, every byte in the 4 KiB sector must remain
+unchanged. An API error or BUSY timeout is a test failure, not a protection PASS.
+The same raw commands must also erase, program and read back data successfully
+after unlocking and outside the partial protection range. The positive test
+checks erased sample bytes are FF before programming its non-FF pattern.
+Raw helpers retain bounds, page, WEL and BUSY checks; `04h` clears residual WEL
+after a completed attempt. Their declarations are in `spi_nor_test.h`, not the
+normal driver API. Normal read/write APIs still enforce software protection.
+No extra Chip Erase is added. This new hardware test still needs on-board validation.
+A successful run leaves the array unprotected; it does not restore the original setting.
+If the first unprotect step fails, the partial-protection test is skipped.
+If protected data changes, the test attempts to unlock and stops without
+further array writes, leaving the failed data available for inspection.
+For this small write/read test, set erase permission to `1U` and full test to `0U`.
+Set both to `0U` to skip array changes; protection-register writes still run.
 
 ## Build
 

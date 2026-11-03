@@ -26,15 +26,45 @@
 /* Erase/program is disabled until a disposable test sector is selected. */
 #define SPI_NOR_DEMO_ALLOW_ERASE    1U
 /* Destructive full-device test; both switches must be enabled. */
-#define SPI_NOR_FULL_TEST           1U
+#define SPI_NOR_FULL_TEST           0U
 /* Full test erase method: 0 = sector loop, 1 = C7h Chip Erase. */
-#define SPI_NOR_FULL_TEST_CHIP_ERASE 1U
+#define SPI_NOR_FULL_TEST_CHIP_ERASE 0U
 /* Adjust to the maximum Chip Erase time in the actual Flash datasheet. */
 #define SPI_NOR_CHIP_ERASE_TIMEOUT_MS 180000U
 #if SPI_NOR_FULL_TEST && !SPI_NOR_DEMO_ALLOW_ERASE
 #error "Full-device test requires SPI_NOR_DEMO_ALLOW_ERASE=1"
 #endif
 #define SPI_NOR_DEMO_ADDRESS        0x00100000U
+
+typedef enum {
+	SPI_NOR_PROTECT_OK = 0,
+	SPI_NOR_PROTECT_ERR_ARGUMENT,
+	SPI_NOR_PROTECT_ERR_RANGE,
+	SPI_NOR_PROTECT_ERR_LOCKED,
+	SPI_NOR_PROTECT_ERR_WRITE_ENABLE,
+	SPI_NOR_PROTECT_ERR_TIMEOUT,
+	SPI_NOR_PROTECT_ERR_VERIFY
+} spi_nor_protect_result_t;
+
+typedef struct {
+	uint32_t start;
+	uint32_t length;  /* Zero means no protected array bytes. */
+	uint8_t bp;
+	uint8_t cmp;
+	uint8_t sr1;
+	uint8_t sr2;
+} spi_nor_protection_t;
+
+/* GD25Q32E only: decode a supplied SR snapshot without accessing the bus. */
+spi_nor_protect_result_t spi_nor_decode_protection(uint8_t sr1, uint8_t sr2,
+												 spi_nor_protection_t *protection);
+
+/* Read fresh status; these helpers never modify SRP, LB or QE. */
+spi_nor_protect_result_t spi_nor_get_protection(spi_nor_protection_t *protection);
+spi_nor_protect_result_t spi_nor_protect_all(void);
+/* GD25Q32E bottom 64 KiB: 0x000000..0x00FFFF, BP=09h, CMP=0. */
+spi_nor_protect_result_t spi_nor_protect_bottom64k(void);
+spi_nor_protect_result_t spi_nor_unprotect(void);
 
 void spi_nor_init(void);
 uint32_t spi_nor_read_id(void);

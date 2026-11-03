@@ -234,6 +234,52 @@ The driver exposes separate transactions, with no transfer-mode parameter:
     spi_nor_chip_erase       C7h whole-chip erase, dedicated BUSY timeout
 Only low-level GPIO/SPI, address and status helpers are shared.
 
+GD25Q32E protection presets
+--------------------------
+    spi_nor_protect_all()        BP=07h, CMP=0, protect 0x000000..0x3FFFFF
+    spi_nor_protect_bottom64k()  BP=09h, CMP=0, protect 0x000000..0x00FFFF
+    spi_nor_unprotect()          BP=00h, CMP=0, protect no array bytes
+    spi_nor_get_protection()     reread SR1/SR2 and decode current protection
+
+These are fixed demo presets only. No arbitrary range setter is provided.
+Each call reads actual status, preserves SRP/LB/QE and verifies the result.
+Write SR1 and SR2 together: 06h Write Enable, CS low, 01h, SR1 byte, SR2 byte,
+CS high, then wait up to 100 ms and verify the actual registers.
+This matches the official GD25Qxx reference and preserves SRP/LB/QE while
+changing BP/CMP. The earlier separate 31h write did not restore QE in the
+reported board log. No independent 31h write is used in this implementation.
+The paired status sequence preserved QE in the subsequent user-supplied log.
+For simplicity, either SRP bit being set returns ERR_LOCKED without writing;
+WP#/QE-dependent unlocking and permanent-lock handling are not implemented.
+Protection may already be partly changed if a later status write fails.
+Query status again after errors. Presets are nonvolatile for this profile.
+Program/sector erase rejects only overlap; Chip Erase rejects any protection.
+main() runs a short protection demo after the selected array test:
+prepare known data -> full protect -> unprotect -> bottom 64 KiB protect -> unprotect.
+Each step prints PASS/FAIL, an error code if needed, and fresh status/range.
+An initial protection snapshot is printed before the first status write.
+With erase permission enabled, disposable sectors 0x000000 and
+SPI_NOR_DEMO_ADDRESS are used for hardware tests. Preparation unlocks and writes
+32 nonblank bytes to the bottom sector, with all remaining sector bytes erased.
+While protected, spi_nor_test_program_raw() and spi_nor_test_erase_raw() actually
+send 06h+02h and 06h+20h without the driver's BP/CMP guard. SUCCESS only means
+the command was issued and BUSY ended. It is not proof that data was modified.
+Every byte of the 4 KiB sector must remain unchanged after each attempt for
+the corresponding 'program/erase blocked (flash)' check to PASS.
+Command errors/timeouts FAIL the test; they are not treated as rejection PASS.
+Normal production APIs keep their BP/CMP checks. Raw helpers are compiled only
+with erase permission, retain bounds/page/WEL/BUSY checks, and use 04h to clear
+residual WEL after a completed attempt. A timeout does not abort a Flash operation.
+After unlock, the same raw commands must erase, program and read back 32 bytes.
+Partial protection also checks these commands outside the bottom 64 KiB.
+The positive tests verify FF after erase before programming a non-FF pattern.
+If protected data changes, attempt to unlock and stop, without more array writes.
+No additional whole-chip erase is performed by the protection demo.
+Success leaves the array unprotected rather than restoring the original setting.
+If the first unprotect step fails, the partial test is skipped. Use erase=1U,
+full=0U for the simple array tests, or set both to 0U for status-only testing.
+No board operations were performed for this revision; validation is still required.
+
 Driver contract and limitations
 -------------------------------
 Initialize SysTick before spi_nor_init; do not call the driver in an ISR
@@ -245,7 +291,7 @@ configured SPI_NOR_CHIP_ERASE_TIMEOUT_MS (180000 ms by default).
 Program automatically splits at page boundaries; erase must be 4 KiB aligned.
 All ranges are checked without address+length overflow. Erase before program;
 NOR programming only changes bits from 1 to 0. No automatic erase is performed.
-Erase/program refuse protected configurations rather than unlocking the chip.
+Erase/program refuse protected overlapping ranges rather than unlocking them.
 The driver checks WEL and BUSY; callers must verify array contents
 because a cleared BUSY bit alone is not proof of successful programming.
 Quad support, dual reconstruction, pin mapping and electrical timing require
